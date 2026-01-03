@@ -1,5 +1,6 @@
 # Put your working directories over here
 setwd("C:/Users/Jun & Heng/Desktop/CPC351 R Prgramming/CPC351_Project")
+setwd("C:/Users/Asus/OneDrive/Desktop/myProjects/Y3S1/CPC 351/CPC351_Project")
 
 #-----------------------------------------------------------------------------
 # This R file tackles the uber dataset,
@@ -40,6 +41,8 @@ same_location <- dataset[dataset$pickup_longitude == dataset$dropoff_longitude &
 
 negative_fare <- dataset[dataset$fare_amount < 0, ]
 
+# Trips out of NYC: not part of problem statement
+# NYC 
 area_outboundaries <- dataset[dataset$dropoff_longitude < -80 | dataset$dropoff_longitude > -70 |
   dataset$pickup_longitude < -80 | dataset$pickup_longitude > -70 |
   dataset$dropoff_latitude < 38 | dataset$dropoff_latitude > 43 |
@@ -51,13 +54,16 @@ print(paste("Invalid probability:", invalidProbability))
 
 
 # 4. Filter out rows that appear in the invalid_rows table
-# Using row.names helps identify exactly which rows to drop
 dataset <- dataset[!(row.names(dataset) %in% row.names(invalid_rows)), ]
 
 # Recheck dataset
 print(summary(dataset))
 
-# Remove the first column by index
+#-----------------------------------------------------------------------------
+# K-means model training
+#-----------------------------------------------------------------------------
+# 1. Extract and derive the relevant features for model classification
+# Remove the X and key columns
 filtered_dataset <- dataset[, -c(1, 2)]
 
 # Calculate Euclidean Distance
@@ -66,8 +72,7 @@ filtered_dataset$dist_euclidean <- sqrt(
     (filtered_dataset$dropoff_latitude - filtered_dataset$pickup_latitude)^2
 )
 
-# Convert Datetime and extract Hour
-# Convert to formal datetime
+# Convert to Datetime and extract the Hour
 filtered_dataset$pickup_datetime <- as.POSIXct(filtered_dataset$pickup_datetime, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
 # Create a new column for the hour (0-23)
 filtered_dataset$pickup_hour <- as.numeric(format(filtered_dataset$pickup_datetime, "%H"))
@@ -77,6 +82,7 @@ filtered_dataset <- filtered_dataset[, -c(2, 7)]
 
 print(summary(filtered_dataset))
 
+# Get the pickup and dropoff location information
 pickup_location <- filtered_dataset[, c("pickup_latitude", "pickup_longitude")]
 dropoff_location <- filtered_dataset[, c("dropoff_latitude", "dropoff_longitude")]
 
@@ -104,8 +110,8 @@ for (k in 1:max_k) {
 plot(1:max_k, wss_2, main = "WSS over dropoff location", type = "b", xlab = "Number of Clusters", ylab = "Within Sum of Squares")
 
 # 3. Create the kmeans model using the best k values obtained from plotting
-k_best_1 <- 8
-k_best_2 <- 8
+k_best_1 <- 5
+k_best_2 <- 3
 
 # 3. Create the kmeans model using the best k values obtained from plotting
 fit1 <- kmeans(pickup_location,
