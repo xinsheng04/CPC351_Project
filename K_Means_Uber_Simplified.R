@@ -41,8 +41,7 @@ same_location <- dataset[dataset$pickup_longitude == dataset$dropoff_longitude &
 
 negative_fare <- dataset[dataset$fare_amount < 0, ]
 
-# Trips out of NYC: not part of problem statement
-# NYC 
+# Remove trips out of NYC 
 area_outboundaries <- dataset[dataset$dropoff_longitude < -76 | dataset$dropoff_longitude > -73 |
   dataset$pickup_longitude < -76 | dataset$pickup_longitude > -73 |
   dataset$dropoff_latitude < 40 | dataset$dropoff_latitude > 42 |
@@ -76,7 +75,7 @@ filtered_dataset <- filtered_dataset[, -c(2, 7)]
 
 print(summary(filtered_dataset))
 
-# Get the pickup and dropoff location information
+# Get the pickup location information
 pickup_location <- filtered_dataset[, c("pickup_latitude", "pickup_longitude")]
 
 # 2. Use Within Sum Squares (WSS) method to determine optimal value of k
@@ -111,7 +110,6 @@ filtered_dataset$pickup_cluster <- as.factor(fit$cluster)
 # Plot to see the distribution of data across different clustering models
 library("ggplot2")
 library("grDevices")
-
 library(leaflet)
 library(dplyr)
 
@@ -136,7 +134,6 @@ map <- leaflet() %>%
   addProviderTiles(providers$CartoDB.Positron) # A clean, grey map perfect for data
 
 # 2. Add the Hulls (Polygons)
-# We loop through each cluster to add its specific hull
 for (c in unique(filtered_dataset$pickup_cluster)) {
   hull_data <- hulls %>% filter(pickup_cluster == c)
   
@@ -171,7 +168,7 @@ map <- map %>%
     options = layersControlOptions(collapsed = TRUE)
   ) %>%
   addLegend(
-    data = filtered_dataset, # Add this line!
+    data = filtered_dataset,
     position = "topright",
     pal = pal,
     values = ~pickup_cluster,
