@@ -1,5 +1,5 @@
 # Put your working directories over here
-setwd("C:/Users/Jun & Heng/Desktop/CPC351 R Prgramming/CPC351_Project")
+# setwd("C:/Users/Jun & Heng/Desktop/CPC351 R Prgramming/CPC351_Project")
 setwd("C:/Users/Asus/OneDrive/Desktop/myProjects/Y3S1/CPC 351/CPC351_Project")
 
 #-----------------------------------------------------------------------------
@@ -43,10 +43,10 @@ negative_fare <- dataset[dataset$fare_amount < 0, ]
 
 # Trips out of NYC: not part of problem statement
 # NYC 
-area_outboundaries <- dataset[dataset$dropoff_longitude < -80 | dataset$dropoff_longitude > -70 |
-  dataset$pickup_longitude < -80 | dataset$pickup_longitude > -70 |
-  dataset$dropoff_latitude < 38 | dataset$dropoff_latitude > 43 |
-  dataset$pickup_latitude < 38 | dataset$pickup_latitude > 43, ]
+area_outboundaries <- dataset[dataset$dropoff_longitude < -76 | dataset$dropoff_longitude > -73 |
+  dataset$pickup_longitude < -76 | dataset$pickup_longitude > -73 |
+  dataset$dropoff_latitude < 40 | dataset$dropoff_latitude > 42 |
+  dataset$pickup_latitude < 40 | dataset$pickup_latitude > 42, ]
 
 invalid_rows <- unique(rbind(narows, same_location, negative_fare, area_outboundaries))
 invalidProbability <- nrow(invalid_rows) / nrow(dataset)
@@ -85,7 +85,7 @@ wss <- numeric(max_k)
 for (k in 1:max_k) {
   model <- kmeans(pickup_location,
     centers = k, nstart = 25,
-    iter.max = 100, algorithm = "MacQueen"
+    iter.max = 100, algorithm = "Hartigan-Wong"
   )
   wss[k] <- sum(model$withinss)
 }
@@ -96,7 +96,7 @@ k_best <- 5
 
 fit <- kmeans(pickup_location,
   centers = k_best, nstart = 25,
-  iter.max = 100, algorithm = "MacQueen"
+  iter.max = 100, algorithm = "Hartigan-Wong"
 )
 
 # View the model
@@ -109,42 +109,76 @@ filtered_dataset$pickup_cluster <- as.factor(fit$cluster)
 # Results Diagnosis and Evaluation
 #-----------------------------------------------------------------------------
 # Plot to see the distribution of data across different clustering models
-
-# Plot the clusters
 library("ggplot2")
 library("grDevices")
 
+library(leaflet)
+library(dplyr)
+
 hulls <- do.call(rbind, lapply(unique(filtered_dataset$pickup_cluster), function(c) {
+  
   # Filter for each specific cluster
+  
   df_sub <- filtered_dataset[filtered_dataset$pickup_cluster == c, ]
+  
   # Calculate the indices of the convex hull points and return those rows
+  
   hull_indices <- chull(df_sub$pickup_longitude, df_sub$pickup_latitude)
+  
   return(df_sub[hull_indices, ])
+  
 }))
 
-ggplot() +
-  geom_point(
-    data = filtered_dataset,
-    aes(x = pickup_latitude, y = pickup_longitude, color = pickup_cluster),
-    alpha = 0.3, size = 1
-  ) +
-  
-  geom_polygon(
-    data = hulls,
-    aes(
-      x = pickup_latitude, y = pickup_longitude,
-      fill = pickup_cluster, group = pickup_cluster
-    ),
-    alpha = 0.4
-  ) +
+# 1. Create a color palette based on the clusters
+pal <- colorFactor(palette = "Set1", domain = filtered_dataset$pickup_cluster)
 
-  coord_fixed() +
-  theme_minimal() +
-  labs(
-    title = "New York City Uber Pickup Clusters",
-    x = "Latitude", y = "Longitude"
-  ) +
-  theme(legend.position = "right")
+map <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) # A clean, grey map perfect for data
+
+# 2. Add the Hulls (Polygons)
+# We loop through each cluster to add its specific hull
+for (c in unique(filtered_dataset$pickup_cluster)) {
+  hull_data <- hulls %>% filter(pickup_cluster == c)
+  
+  map <- map %>%
+    addPolygons(
+      data = hull_data,
+      lng = ~pickup_longitude, 
+      lat = ~pickup_latitude,
+      fillColor = ~pal(c),
+      weight = 2,
+      opacity = 1,
+      fillOpacity = 0.4,
+      group = paste("Cluster", c),
+      label = paste("Cluster", c)
+    )
+}
+
+# 3. Add the individual points for detail
+map <- map %>%
+  addCircleMarkers(
+    data = filtered_dataset,
+    lng = ~pickup_longitude, 
+    lat = ~pickup_latitude,
+    radius = 1,
+    color = ~pal(pickup_cluster),
+    stroke = FALSE,
+    fillOpacity = 0.2,
+    group = "Points"
+  ) %>%
+  addLayersControl(
+    overlayGroups = c("Points", paste("Cluster", unique(filtered_dataset$pickup_cluster))),
+    options = layersControlOptions(collapsed = TRUE)
+  ) %>%
+  addLegend(
+    data = filtered_dataset, # Add this line!
+    position = "topright",
+    pal = pal,
+    values = ~pickup_cluster,
+    title = "Pickup Clusters",
+    opacity = 1
+  )
+
 
 # Group hours based on cluster
 hourly_pickup_distribution <- as.data.frame(
@@ -171,4 +205,6 @@ ggplot(hourly_pickup_distribution, aes(
     y = "Number of Pickups"
   ) +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(legend.position = "none", panel.spacing.y = unit(2, "lines"))
+
+print(map)
