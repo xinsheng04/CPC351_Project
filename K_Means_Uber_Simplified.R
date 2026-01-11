@@ -42,10 +42,12 @@ same_location <- dataset[dataset$pickup_longitude == dataset$dropoff_longitude &
 negative_fare <- dataset[dataset$fare_amount < 0, ]
 
 # Remove trips out of NYC 
-area_outboundaries <- dataset[dataset$dropoff_longitude < -76 | dataset$dropoff_longitude > -73 |
-  dataset$pickup_longitude < -76 | dataset$pickup_longitude > -73 |
-  dataset$dropoff_latitude < 40 | dataset$dropoff_latitude > 42 |
-  dataset$pickup_latitude < 40 | dataset$pickup_latitude > 42, ]
+long_limits = c( -74.5, -73.7)
+lat_limits = c(40.4, 41)
+area_outboundaries <- dataset[dataset$dropoff_longitude < long_limits[1] | dataset$dropoff_longitude > long_limits[2] |
+  dataset$pickup_longitude < long_limits[1] | dataset$pickup_longitude > long_limits[2] |
+  dataset$dropoff_latitude < lat_limits[1] | dataset$dropoff_latitude > lat_limits[2] |
+  dataset$pickup_latitude < lat_limits[1] | dataset$pickup_latitude > lat_limits[2], ]
 
 invalid_rows <- unique(rbind(narows, same_location, negative_fare, area_outboundaries))
 invalidProbability <- nrow(invalid_rows) / nrow(dataset)
@@ -53,25 +55,39 @@ print(paste("Invalid probability:", invalidProbability))
 
 
 # 4. Filter out rows that appear in the invalid_rows table
-dataset <- dataset[!(row.names(dataset) %in% row.names(invalid_rows)), ]
+filtered_dataset <- dataset[!(row.names(dataset) %in% row.names(invalid_rows)), ]
 
 # Recheck dataset
-print(summary(dataset))
+print(summary(filtered_dataset))
+
+# Visualize pickup locations after out of NYC location removal
+library(leaflet)
+initial_map <- leaflet(filtered_dataset[, c("pickup_longitude", "pickup_latitude")]) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircleMarkers(
+    lng = ~pickup_longitude, 
+    lat = ~pickup_latitude,
+    radius = 1,
+    color = "blue",
+    stroke = FALSE,
+    fillOpacity = 0.1
+  )
+
+print(initial_map)
 
 #-----------------------------------------------------------------------------
 # K-means model training
 #-----------------------------------------------------------------------------
+set.seed(500)
 # 1. Extract and derive the relevant features for model classification
-# Remove the X and key columns
-filtered_dataset <- dataset[, -c(1, 2)]
 
 # Convert to Datetime and extract the Hour
 filtered_dataset$pickup_datetime <- as.POSIXct(filtered_dataset$pickup_datetime, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
 # Create a new column for the hour (0-23)
 filtered_dataset$pickup_hour <- as.numeric(format(filtered_dataset$pickup_datetime, "%H"))
 
-# Remove the pickup_datetime and passenger_count column by index
-filtered_dataset <- filtered_dataset[, -c(2, 7)]
+# Only retain the pickup location and pickup hour columns
+filtered_dataset <- filtered_dataset[, c("pickup_longitude", "pickup_latitude", "pickup_hour")]
 
 print(summary(filtered_dataset))
 
