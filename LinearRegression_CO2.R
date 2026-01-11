@@ -160,3 +160,44 @@ prediction_CO2_df <- data.frame(
 predicted_CO2 <- predict(multiplelr_model, prediction_CO2_df)
 
 cat("The predicted CO2 Emission is: ", round(predicted_CO2,3), "g/km \n")
+#-------------------------------------------------------------------------------
+# Data Storytelling Visualizations 
+#-------------------------------------------------------------------------------
+
+# 1. Bar Chart: Average CO2 by Vehicle Class
+# We use reorder() to sort the bars from highest emitters to lowest for better storytelling
+d <- ggplot(dataset_clean, aes(x = reorder(Vehicle.Class, CO2.Emissions.g.km., FUN = mean), y = CO2.Emissions.g.km.)) +
+  geom_bar(stat = 'summary', fun = 'mean', fill = '#4e79a7') + # Steel blue color
+  coord_flip() + # Flip coordinates to make long class names readable
+  labs(title = 'Average CO2 Emissions by Vehicle Class', 
+       x = 'Vehicle Class', 
+       y = 'Average CO2 Emissions (g/km)') +
+  theme_minimal()
+
+# Save the graph
+ggsave(
+  filename = 'CO2_by_Vehicle_Class.png',
+  plot = d,
+  width = 12,
+  height = 8,
+  dpi = 400
+)
+
+# 2. Box Plot: CO2 Distribution by Transmission Type
+# This shows the spread (median, range, outliers) for each transmission
+e <- ggplot(dataset_clean, aes(x = Transmission, y = CO2.Emissions.g.km., fill = Transmission)) +
+  geom_boxplot() +
+  labs(title = 'CO2 Emissions Distribution by Transmission Type', 
+       x = 'Transmission Type', 
+       y = 'CO2 Emissions (g/km)') +
+  theme_minimal() +
+  theme(legend.position = 'none') # Remove legend as x-axis labels are sufficient
+
+# Save the graph
+ggsave(
+  filename = 'CO2_by_Transmission.png',
+  plot = e,
+  width = 12,
+  height = 8,
+  dpi = 400
+)
